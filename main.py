@@ -8,20 +8,13 @@ from sqlalchemy.orm import sessionmaker, Session
 
 app = FastAPI()
 
-# یافتن مسیر دقیق پروژه در سرور
+# تنظیم مسیرها
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
-
-# چک کردن وجود پوشه برای جلوگیری از کرش
-if not os.path.exists(TEMPLATE_DIR):
-    os.makedirs(TEMPLATE_DIR)
-
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
 
-# تنظیمات دیتابیس (SQLite در ریشه پروژه)
-DB_PATH = os.path.join(BASE_DIR, "students.db")
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
-
+# تنظیمات دیتابیس
+SQLALCHEMY_DATABASE_URL = "sqlite:///./students.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -44,14 +37,11 @@ def get_db():
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    try:
-        return templates.TemplateResponse("home.html", {"request": request})
-    except Exception as e:
-        return HTMLResponse(content=f"<h1>خطا در لود قالب:</h1><p>{str(e)}</p><p>مطمئن شوید فایل home.html در پوشه templates قرار دارد.</p>")
+    return templates.TemplateResponse(request=request, name="home.html", context={})
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="login.html", context={})
 
 @app.post("/login")
 async def login(username: str = Form(...), password: str = Form(...)):
@@ -62,7 +52,7 @@ async def login(username: str = Form(...), password: str = Form(...)):
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request, db: Session = Depends(get_db)):
     students = db.query(Student).all()
-    return templates.TemplateResponse("admin.html", {"request": request, "students": students})
+    return templates.TemplateResponse(request=request, name="admin.html", context={"students": students})
 
 @app.post("/add_student")
 async def add_student(name: str = Form(...), student_id: str = Form(...), major: str = Form(...), db: Session = Depends(get_db)):
@@ -74,5 +64,5 @@ async def add_student(name: str = Form(...), student_id: str = Form(...), major:
 @app.get("/students", response_class=HTMLResponse)
 async def view_students(request: Request, db: Session = Depends(get_db)):
     students = db.query(Student).all()
-    return templates.TemplateResponse("students.html", {"request": request, "students": students})
+    return templates.TemplateResponse(request=request, name="students.html", context={"students": students})
     
