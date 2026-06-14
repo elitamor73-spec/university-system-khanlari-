@@ -5,16 +5,23 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from pathlib import Path
 
 app = FastAPI()
 
-# تعیین مسیر دقیق قالب‌ها
-base_dir = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(base_dir / "templates"))
+# یافتن مسیر دقیق پروژه در سرور
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
-# دیتابیس
-SQLALCHEMY_DATABASE_URL = "sqlite:///./students.db"
+# چک کردن وجود پوشه برای جلوگیری از کرش
+if not os.path.exists(TEMPLATE_DIR):
+    os.makedirs(TEMPLATE_DIR)
+
+templates = Jinja2Templates(directory=TEMPLATE_DIR)
+
+# تنظیمات دیتابیس (SQLite در ریشه پروژه)
+DB_PATH = os.path.join(BASE_DIR, "students.db")
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
+
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -37,7 +44,10 @@ def get_db():
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
+    try:
+        return templates.TemplateResponse("home.html", {"request": request})
+    except Exception as e:
+        return HTMLResponse(content=f"<h1>خطا در لود قالب:</h1><p>{str(e)}</p><p>مطمئن شوید فایل home.html در پوشه templates قرار دارد.</p>")
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -65,4 +75,4 @@ async def add_student(name: str = Form(...), student_id: str = Form(...), major:
 async def view_students(request: Request, db: Session = Depends(get_db)):
     students = db.query(Student).all()
     return templates.TemplateResponse("students.html", {"request": request, "students": students})
-                        
+    
