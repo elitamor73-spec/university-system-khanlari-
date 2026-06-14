@@ -6,13 +6,14 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-# تنظیمات مسیر برای Render
+# اصلاح هوشمند مسیر پوشه قالب‌ها برای سرور Render
 base_dir = os.path.dirname(os.path.realpath(__file__))
-templates = Jinja2Templates(directory=os.path.join(base_dir, "templates"))
+templates_path = os.path.join(base_dir, "templates")
+templates = Jinja2Templates(directory=templates_path)
 
 app = FastAPI()
 
-# دیتابیس
+# تنظیمات دیتابیس
 SQLALCHEMY_DATABASE_URL = "sqlite:///./students.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -34,6 +35,7 @@ def get_db():
     finally:
         db.close()
 
+# مسیرهای اصلی برنامه
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("home.html", {"request": request})
@@ -64,4 +66,5 @@ async def add_student(name: str = Form(...), student_id: str = Form(...), major:
 async def view_students(request: Request, db: Session = Depends(get_db)):
     students = db.query(Student).all()
     return templates.TemplateResponse("students.html", {"request": request, "students": students})
+    
     
