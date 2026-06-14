@@ -1,63 +1,67 @@
-
-from fastapi import FastAPI, Request, Form
+import os
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+
+# تنظیمات مسیر برای Render
+base_dir = os.path.dirname(os.path.realpath(__file__))
+templates = Jinja2Templates(directory=os.path.join(base_dir, "templates"))
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
 
-students_db = []
-ADMIN_PASSWORD = "1111"
+# دیتابیس
+SQLALCHEMY_DATABASE_URL = "sqlite:///./students.db"
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class Student(Base):
+    __tablename__ = "students"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    student_id = Column(String, unique=True)
+    major = Column(String)
+
+Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request):
+async def home(request: Request):
     return templates.TemplateResponse("home.html", {"request": request})
 
-@app.get("/add-student", response_class=HTMLResponse)
-def add_student_page(request: Request, message: str = ""):
-    return templates.TemplateResponse("add_student.html", {"request": request, "message": message})
-
-@app.post("/add-student")
-def add_student(firstname: str = Form(...), lastname: str = Form(...), national_id: str = Form(...), password: str = Form(...)):
-    for s in students_db:
-        if s["national_id"] == national_id:
-            return RedirectResponse(url="/add-student?message=این کد ملی قبلاً ثبت شده است", status_code=303)
-    students_db.append({
-        "id": len(students_db)+1,
-        "firstname": firstname,
-        "lastname": lastname,
-        "national_id": national_id,
-        "password": password
-    })
-    return RedirectResponse(url="/add-student?message=دانشجو با موفقیت اضافه شد", status_code=303)
-
 @app.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, message: str = ""):
-    return templates.TemplateResponse("login.html", {"request": request, "message": message})
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
-def login(national_id: str = Form(...), password: str = Form(...)):
-    for s in students_db:
-        if s["national_id"] == national_id and s["password"] == password:
-            return RedirectResponse(url="/login?message=ورود موفق بود", status_code=303)
-    return RedirectResponse(url="/login?message=شما عضو نیستید", status_code=303)
+async def login(username: str = Form(...), password: str = Form(...)):
+    if username == "admin" and password == "1234":
+        return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse(url="/login", status_code=303)
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request, db: Session = Depends(get_db)):
+    students = db.query(Student).all()
+    return templates.TemplateResponse("admin.html", {"request": request, "students": students})
+
+@app.post("/add_student")
+async def add_student(name: str = Form(...), student_id: str = Form(...), major: str = Form(...), db: Session = Depends(get_db)):
+    new_student = Student(name=name, student_id=student_id, major=major)
+    db.add(new_student)
+    db.commit()
+    return RedirectResponse(url="/admin", status_code=303)
 
 @app.get("/students", response_class=HTMLResponse)
-def students_list(request: Request):
-    return templates.TemplateResponse("students.html", {"request": request, "students": students_db})
-
-@app.get("/admin-delete", response_class=HTMLResponse)
-def admin_page(request: Request, message: str = ""):
-    return templates.TemplateResponse("admin.html", {"request": request, "students": students_db, "message": message})
-
-@app.post("/admin-login")
-def admin_login(password: str = Form(...)):
-    if password == ADMIN_PASSWORD:
-        return RedirectResponse(url="/admin-delete?message=authorized", status_code=303)
-    return RedirectResponse(url="/admin-delete?message=رمز اشتباه است", status_code=303)
-
-@app.get("/delete/{student_id}")
-def delete_student(student_id: int):
-    global students_db
-    students_db = [s for s in students_db if s["id"] != student_id]
-    return RedirectResponse(url="/admin-delete?message=دانشجو حذف شد", status_code=303)
+async def view_students(request: Request, db: Session = Depends(get_db)):
+    students = db.query(Student).all()
+    return templates.TemplateResponse("students.html", {"request": request, "students": students})
+    
