@@ -7,26 +7,18 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 app = FastAPI()
 
-# -------------------------
-# تنظیم مسیر templates
-# -------------------------
+# تنظیمات Templates
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# -------------------------
-# تنظیمات دیتابیس
-# -------------------------
+# --- دیتابیس ---
 DATABASE_URL = "sqlite:///./students.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# -------------------------
-# مدل دانشجو
-# -------------------------
 class Student(Base):
     __tablename__ = "students"
-
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     student_id = Column(String, unique=True, nullable=False)
@@ -34,43 +26,31 @@ class Student(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# -------------------------
-# اتصال به دیتابیس
-# -------------------------
 def get_db():
     db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    try: yield db
+    finally: db.close()
 
-# -------------------------
-# صفحه اصلی
-# -------------------------
+# -----------------------
+# ۱. صفحه اصلی (home.html)
+# -----------------------
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="home.html", context={})
 
-# -------------------------
-# ورود دانشجو
-# -------------------------
+# -----------------------
+# ۲. ورود دانشجو (login.html) - بدون تغییر و حذف
+# -----------------------
 @app.get("/login", response_class=HTMLResponse)
 async def student_login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="login.html", context={})
 
-@app.post("/login")
-async def student_login(username: str = Form(...), password: str = Form(...)):
-    # فعلاً فقط نمونه
-    if username == "student" and password == "1234":
-        return RedirectResponse(url="/students", status_code=303)
-    return RedirectResponse(url="/login", status_code=303)
-
-# -------------------------
-# ورود ادمین
-# -------------------------
+# -----------------------
+# ۳. ورود مدیر (admin_login.html) - مخصوص مدیریت
+# -----------------------
 @app.get("/admin_login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
-    return templates.TemplateResponse("admin_login.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="admin_login.html", context={})
 
 @app.post("/admin_login")
 async def admin_login(username: str = Form(...), password: str = Form(...)):
@@ -78,51 +58,43 @@ async def admin_login(username: str = Form(...), password: str = Form(...)):
         return RedirectResponse(url="/admin", status_code=303)
     return RedirectResponse(url="/admin_login", status_code=303)
 
-# -------------------------
-# پنل مدیریت
-# -------------------------
+# -----------------------
+# ۴. پنل اصلی مدیریت (admin.html)
+# -----------------------
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
-    return templates.TemplateResponse("admin.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="admin.html", context={})
 
-# -------------------------
-# افزودن دانشجو
-# -------------------------
+# -----------------------
+# ۵. بخش افزودن دانشجو (add_student.html)
+# -----------------------
 @app.get("/add_student", response_class=HTMLResponse)
 async def add_student_page(request: Request):
-    return templates.TemplateResponse("add_student.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="add_student.html", context={})
 
 @app.post("/add_student")
-async def add_student_action(
-    name: str = Form(...),
-    student_id: str = Form(...),
-    major: str = Form(...),
-    db: Session = Depends(get_db)
-):
+async def add_student_action(name: str = Form(...), student_id: str = Form(...), major: str = Form(...), db: Session = Depends(get_db)):
     new_student = Student(name=name, student_id=student_id, major=major)
     db.add(new_student)
     db.commit()
     return RedirectResponse(url="/students", status_code=303)
 
-# -------------------------
-# لیست دانشجویان
-# -------------------------
+# -----------------------
+# ۶. مشاهده لیست دانشجویان (students.html)
+# -----------------------
 @app.get("/students", response_class=HTMLResponse)
 async def view_students(request: Request, db: Session = Depends(get_db)):
     students = db.query(Student).all()
-    return templates.TemplateResponse("students.html", {"request": request, "students": students})
+    return templates.TemplateResponse(request=request, name="students.html", context={"students": students})
 
-# -------------------------
-# صفحه حذف دانشجویان
-# -------------------------
+# -----------------------
+# ۷. بخش حذف دانشجو (delete_students.html)
+# -----------------------
 @app.get("/delete_students", response_class=HTMLResponse)
 async def delete_page(request: Request, db: Session = Depends(get_db)):
     students = db.query(Student).all()
-    return templates.TemplateResponse("delete_students.html", {"request": request, "students": students})
+    return templates.TemplateResponse(request=request, name="delete_students.html", context={"students": students})
 
-# -------------------------
-# عملیات حذف دانشجو
-# -------------------------
 @app.get("/delete/{student_id}")
 async def delete_action(student_id: int, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
