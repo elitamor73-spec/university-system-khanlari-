@@ -7,17 +7,16 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 app = FastAPI()
 
-# مسیر templates (سازگار با پلتفرم Render)
+# مسیر templates (هماهنگ با ساختار گیت‌هاب و رندر)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# تنظیمات دیتابیس
+# --- تنظیمات دیتابیس ---
 DATABASE_URL = "sqlite:///./students.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# مدل دانشجو
 class Student(Base):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True, index=True)
@@ -27,7 +26,6 @@ class Student(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# تابع اتصال به دیتابیس
 def get_db():
     db = SessionLocal()
     try:
@@ -40,22 +38,15 @@ def get_db():
 # -----------------------
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="home.html",
-        context={}
-    )
+    return templates.TemplateResponse(request=request, name="home.html", context={})
 
 # -----------------------
-# ۲. صفحه ورود (login.html)
+# ۲. صفحه ورود مدیر (طبق تصویر: admin_login.html)
 # -----------------------
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="login.html",
-        context={}
-    )
+    # اینجا نام فایل دقیقا مطابق تصویر گیت‌هاب شما اصلاح شد
+    return templates.TemplateResponse(request=request, name="admin_login.html", context={})
 
 # -----------------------
 # ۳. بررسی عملیات ورود
@@ -67,24 +58,21 @@ async def login(username: str = Form(...), password: str = Form(...)):
     return RedirectResponse(url="/login", status_code=303)
 
 # -----------------------
-# ۴. پنل مدیریت
+# ۴. پنل مدیریت (طبق تصویر: add_student.html)
 # -----------------------
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="admin.html",
-        context={}
-    )
+    # طبق تصویر، فایل فرم افزودن دانشجو add_student.html نام دارد
+    return templates.TemplateResponse(request=request, name="add_student.html", context={})
 
 # -----------------------
-# ۵. افزودن دانشجو
+# ۵. عملیات افزودن دانشجو
 # -----------------------
 @app.post("/add_student")
 async def add_student(
-    name: str = Form(...),
-    student_id: str = Form(...),
-    major: str = Form(...),
+    name: str = Form(...), 
+    student_id: str = Form(...), 
+    major: str = Form(...), 
     db: Session = Depends(get_db)
 ):
     new_student = Student(name=name, student_id=student_id, major=major)
@@ -93,31 +81,23 @@ async def add_student(
     return RedirectResponse(url="/students", status_code=303)
 
 # -----------------------
-# ۶. مشاهده لیست دانشجویان
+# ۶. مشاهده لیست دانشجویان (students.html)
 # -----------------------
 @app.get("/students", response_class=HTMLResponse)
 async def view_students(request: Request, db: Session = Depends(get_db)):
     students = db.query(Student).all()
-    return templates.TemplateResponse(
-        request=request,
-        name="students.html",
-        context={"students": students}
-    )
+    return templates.TemplateResponse(request=request, name="students.html", context={"students": students})
 
 # -----------------------
-# ۷. صفحه مدیریت حذف
+# ۷. صفحه مدیریت حذف (delete_students.html)
 # -----------------------
 @app.get("/delete_students", response_class=HTMLResponse)
 async def delete_students_page(request: Request, db: Session = Depends(get_db)):
     students = db.query(Student).all()
-    return templates.TemplateResponse(
-        request=request,
-        name="delete_students.html",
-        context={"students": students}
-    )
+    return templates.TemplateResponse(request=request, name="delete_students.html", context={"students": students})
 
 # -----------------------
-# ۸. عملیات حذف دانشجو
+# ۸. عملیات حذف از دیتابیس
 # -----------------------
 @app.get("/delete/{student_id}")
 async def delete_student(student_id: int, db: Session = Depends(get_db)):
@@ -126,4 +106,4 @@ async def delete_student(student_id: int, db: Session = Depends(get_db)):
         db.delete(student)
         db.commit()
     return RedirectResponse(url="/delete_students", status_code=303)
-    
+                               
