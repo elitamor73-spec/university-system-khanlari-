@@ -17,19 +17,23 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# مدل اصلاح‌شده متناسب با فرم افزودن دانشجو
 class Student(Base):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    student_id = Column(String, unique=True, nullable=False)
-    major = Column(String, nullable=False)
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    national_id = Column(String, unique=True, nullable=False)
+    password = Column(String, nullable=False)
 
 Base.metadata.create_all(bind=engine)
 
 def get_db():
     db = SessionLocal()
-    try: yield db
-    finally: db.close()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # -----------------------
 # ۱. صفحه اصلی (home.html)
@@ -39,14 +43,14 @@ async def home(request: Request):
     return templates.TemplateResponse(request=request, name="home.html", context={})
 
 # -----------------------
-# ۲. ورود دانشجو (login.html) - بدون تغییر و حذف
+# ۲. ورود دانشجو (login.html)
 # -----------------------
 @app.get("/login", response_class=HTMLResponse)
 async def student_login_page(request: Request):
     return templates.TemplateResponse(request=request, name="login.html", context={})
 
 # -----------------------
-# ۳. ورود مدیر (admin_login.html) - مخصوص مدیریت
+# ۳. ورود مدیر (admin_login.html)
 # -----------------------
 @app.get("/admin_login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
@@ -70,7 +74,8 @@ async def admin_panel(request: Request):
 # -----------------------
 @app.get("/add_student", response_class=HTMLResponse)
 async def add_student_page(request: Request):
-    return templates.TemplateResponse("add_student.html", {"request": request})
+    # اصلاح قالب فراخوانی تمپلیت
+    return templates.TemplateResponse(request=request, name="add_student.html", context={})
 
 @app.post("/add_student")
 async def add_student_action(
@@ -80,7 +85,7 @@ async def add_student_action(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    # ساخت آبجکت جدید برای دیتابیس
+    # ذخیره مشخصات دانشجو در دیتابیس با مدل جدید
     new_student = Student(
         first_name=first_name,
         last_name=last_name,
@@ -89,9 +94,8 @@ async def add_student_action(
     )
     db.add(new_student)
     db.commit()
-    # پس از ذخیره، به صفحه لیست دانشجویان هدایت می‌شود
+    # انتقال به صفحه لیست دانشجوها پس از ثبت موفقیت‌آمیز
     return RedirectResponse(url="/students", status_code=303)
-    
 
 # -----------------------
 # ۶. مشاهده لیست دانشجویان (students.html)
