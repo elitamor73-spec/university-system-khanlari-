@@ -70,14 +70,28 @@ async def admin_panel(request: Request):
 # -----------------------
 @app.get("/add_student", response_class=HTMLResponse)
 async def add_student_page(request: Request):
-    return templates.TemplateResponse(request=request, name="add_student.html", context={})
+    return templates.TemplateResponse("add_student.html", {"request": request})
 
 @app.post("/add_student")
-async def add_student_action(name: str = Form(...), student_id: str = Form(...), major: str = Form(...), db: Session = Depends(get_db)):
-    new_student = Student(name=name, student_id=student_id, major=major)
+async def add_student_action(
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    national_id: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    # ساخت آبجکت جدید برای دیتابیس
+    new_student = Student(
+        first_name=first_name,
+        last_name=last_name,
+        national_id=national_id,
+        password=password
+    )
     db.add(new_student)
     db.commit()
+    # پس از ذخیره، به صفحه لیست دانشجویان هدایت می‌شود
     return RedirectResponse(url="/students", status_code=303)
+    
 
 # -----------------------
 # ۶. مشاهده لیست دانشجویان (students.html)
