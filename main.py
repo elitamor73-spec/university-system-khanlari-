@@ -7,29 +7,19 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 app = FastAPI()
 
-# مسیر templates (سازگار با Render)
+# مسیر templates (سازگار با پلتفرم Render)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# دیتابیس
+# تنظیمات دیتابیس
 DATABASE_URL = "sqlite:///./students.db"
-
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# مدل دانشجو
 class Student(Base):
     __tablename__ = "students"
-
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     student_id = Column(String, unique=True, nullable=False)
@@ -37,7 +27,7 @@ class Student(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# گرفتن اتصال دیتابیس
+# تابع اتصال به دیتابیس
 def get_db():
     db = SessionLocal()
     try:
@@ -46,7 +36,7 @@ def get_db():
         db.close()
 
 # -----------------------
-# صفحه اصلی
+# ۱. صفحه اصلی
 # -----------------------
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -57,17 +47,19 @@ async def home(request: Request):
     )
 
 # -----------------------
-# صفحه ورود (admin_login.html)
+# ۲. صفحه ورود (login.html)
 # -----------------------
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse(
         request=request,
-        name="admin_login.html",
+        name="login.html",
         context={}
     )
 
-# بررسی ورود
+# -----------------------
+# ۳. بررسی عملیات ورود
+# -----------------------
 @app.post("/login")
 async def login(username: str = Form(...), password: str = Form(...)):
     if username == "admin" and password == "1234":
@@ -75,7 +67,7 @@ async def login(username: str = Form(...), password: str = Form(...)):
     return RedirectResponse(url="/login", status_code=303)
 
 # -----------------------
-# پنل مدیریت
+# ۴. پنل مدیریت
 # -----------------------
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
@@ -86,7 +78,7 @@ async def admin_page(request: Request):
     )
 
 # -----------------------
-# افزودن دانشجو
+# ۵. افزودن دانشجو
 # -----------------------
 @app.post("/add_student")
 async def add_student(
@@ -95,17 +87,13 @@ async def add_student(
     major: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    new_student = Student(
-        name=name,
-        student_id=student_id,
-        major=major
-    )
+    new_student = Student(name=name, student_id=student_id, major=major)
     db.add(new_student)
     db.commit()
-    return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse(url="/students", status_code=303)
 
 # -----------------------
-# مشاهده دانشجویان
+# ۶. مشاهده لیست دانشجویان
 # -----------------------
 @app.get("/students", response_class=HTMLResponse)
 async def view_students(request: Request, db: Session = Depends(get_db)):
@@ -117,7 +105,7 @@ async def view_students(request: Request, db: Session = Depends(get_db)):
     )
 
 # -----------------------
-# صفحه حذف (delete_students.html)
+# ۷. صفحه مدیریت حذف
 # -----------------------
 @app.get("/delete_students", response_class=HTMLResponse)
 async def delete_students_page(request: Request, db: Session = Depends(get_db)):
@@ -128,13 +116,14 @@ async def delete_students_page(request: Request, db: Session = Depends(get_db)):
         context={"students": students}
     )
 
-# حذف دانشجو
+# -----------------------
+# ۸. عملیات حذف دانشجو
+# -----------------------
 @app.get("/delete/{student_id}")
 async def delete_student(student_id: int, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
     if student:
         db.delete(student)
         db.commit()
-
     return RedirectResponse(url="/delete_students", status_code=303)
     
