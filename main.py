@@ -7,7 +7,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 app = FastAPI()
 
-# مسیر templates (هماهنگ با ساختار گیت‌هاب و رندر)
+# مسیر templates
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
@@ -41,11 +41,10 @@ async def home(request: Request):
     return templates.TemplateResponse(request=request, name="home.html", context={})
 
 # -----------------------
-# ۲. صفحه ورود مدیر (طبق تصویر: admin_login.html)
+# ۲. صفحه ورود مدیر
 # -----------------------
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    # اینجا نام فایل دقیقا مطابق تصویر گیت‌هاب شما اصلاح شد
     return templates.TemplateResponse(request=request, name="admin_login.html", context={})
 
 # -----------------------
@@ -58,30 +57,31 @@ async def login(username: str = Form(...), password: str = Form(...)):
     return RedirectResponse(url="/login", status_code=303)
 
 # -----------------------
-# ۴. پنل مدیریت (طبق تصویر: add_student.html)
+# ۴. پنل مدیریت (منوی اصلی مدیریت)
 # -----------------------
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
-    # طبق تصویر، فایل فرم افزودن دانشجو add_student.html نام دارد
+    return templates.TemplateResponse(request=request, name="admin.html", context={})
+
+# -----------------------
+# ۵. صفحه فرم افزودن دانشجو
+# -----------------------
+@app.get("/add_student", response_class=HTMLResponse)
+async def add_student_page(request: Request):
     return templates.TemplateResponse(request=request, name="add_student.html", context={})
 
 # -----------------------
-# ۵. عملیات افزودن دانشجو
+# ۶. عملیات ثبت دانشجو در دیتابیس
 # -----------------------
 @app.post("/add_student")
-async def add_student(
-    name: str = Form(...), 
-    student_id: str = Form(...), 
-    major: str = Form(...), 
-    db: Session = Depends(get_db)
-):
+async def add_student(name: str = Form(...), student_id: str = Form(...), major: str = Form(...), db: Session = Depends(get_db)):
     new_student = Student(name=name, student_id=student_id, major=major)
     db.add(new_student)
     db.commit()
     return RedirectResponse(url="/students", status_code=303)
 
 # -----------------------
-# ۶. مشاهده لیست دانشجویان (students.html)
+# ۷. مشاهده لیست دانشجویان
 # -----------------------
 @app.get("/students", response_class=HTMLResponse)
 async def view_students(request: Request, db: Session = Depends(get_db)):
@@ -89,7 +89,7 @@ async def view_students(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request=request, name="students.html", context={"students": students})
 
 # -----------------------
-# ۷. صفحه مدیریت حذف (delete_students.html)
+# ۸. صفحه مدیریت حذف دانشجو
 # -----------------------
 @app.get("/delete_students", response_class=HTMLResponse)
 async def delete_students_page(request: Request, db: Session = Depends(get_db)):
@@ -97,7 +97,7 @@ async def delete_students_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request=request, name="delete_students.html", context={"students": students})
 
 # -----------------------
-# ۸. عملیات حذف از دیتابیس
+# ۹. عملیات نهایی حذف از دیتابیس
 # -----------------------
 @app.get("/delete/{student_id}")
 async def delete_student(student_id: int, db: Session = Depends(get_db)):
@@ -106,4 +106,4 @@ async def delete_student(student_id: int, db: Session = Depends(get_db)):
         db.delete(student)
         db.commit()
     return RedirectResponse(url="/delete_students", status_code=303)
-                               
+    
